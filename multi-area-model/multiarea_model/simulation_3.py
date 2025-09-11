@@ -368,7 +368,7 @@ class Simulation:
                       #'time_gather_spike_data',
                       #'time_update',
                       'time_simulate',
-                      'time_synch_global'
+                      #'time_synch_global'
                       ]
 
         values = nest.GetKernelStatus(timer_keys)
