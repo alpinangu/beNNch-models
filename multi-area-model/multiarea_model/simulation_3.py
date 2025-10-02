@@ -439,8 +439,8 @@ class Simulation:
         d['total_min_flt'] = _minflt1
         d['total_maj_flt'] = _majflt1
         if hasattr(self, '_pf_presim'):
-            d['min_flt_delta'] = max(0, _minflt1 - self._pf_presim[0])
-            d['maj_flt_delta'] = max(0, _majflt1 - self._pf_presim[1])
+            d['sim_min_flt'] = max(0, _minflt1 - self._pf_presim[0])
+            d['sim_maj_flt'] = max(0, _majflt1 - self._pf_presim[1])
         # --- END PAGE FAULTS (ADDED) ---
 
         print(d)
