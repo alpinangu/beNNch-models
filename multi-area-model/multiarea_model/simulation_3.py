@@ -375,6 +375,16 @@ class Simulation:
 
         self.presim_timers = dict(zip(timer_keys, values))
 
+        # --- add page-fault baseline (cumulative since process start) ---
+        import subprocess
+        import os
+        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],
+                                stdout=subprocess.PIPE)
+        _lines = result.stdout.decode().strip().splitlines()
+        _minflt0, _majflt0 = map(int, _lines[-1].split())
+        self._pf_presim = (_minflt0, _majflt0)
+        # ---------------------------------------------------------------
+
         fn = os.path.join(self.data_dir,
                           'recordings',
                           '_'.join((self.label,
@@ -385,6 +395,9 @@ class Simulation:
             for idx, value in enumerate(values):
                 f.write('presim_' + timer_keys[idx] + ' ' + str(value) + '\n')
             f.write('presim_local_spike_counter' + ' ' + str(nest.GetKernelStatus('local_spike_counter')) + '\n')
+            # ------write the presim page-fault snapshot-----------------
+            f.write('presim_min_flt ' + str(self._pf_presim[0]) + '\n')
+            f.write('presim_maj_flt ' + str(self._pf_presim[1]) + '\n')
 
     def logging(self):
         """
@@ -415,6 +428,20 @@ class Simulation:
                     d[key] = tuple(r.tolist())
                 else:
                     d[key] = r.item() if r.ndim == 0 else tuple(r.tolist())
+
+        # --- PAGE FAULTS (ADDED): snapshot at end + delta vs presim ---
+        import subprocess
+        import os
+        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],
+                                stdout=subprocess.PIPE)
+        _lines = result.stdout.decode().strip().splitlines()
+        _minflt1, _majflt1 = map(int, _lines[-1].split())
+        d['total_min_flt'] = _minflt1
+        d['total_maj_flt'] = _majflt1
+        if hasattr(self, '_pf_presim'):
+            d['min_flt_delta'] = max(0, _minflt1 - self._pf_presim[0])
+            d['maj_flt_delta'] = max(0, _majflt1 - self._pf_presim[1])
+        # --- END PAGE FAULTS (ADDED) ---
 
         print(d)
 
