@@ -22,6 +22,7 @@ import os
 import pprint
 import shutil
 import time
+import subprocess
 
 from .analysis_helpers import _load_npy_to_dict, model_iter
 from config import base_path
@@ -297,11 +298,59 @@ class Simulation:
         t1 = time.time()
         self.time_connect_cc = t1 - t0
 
+    def logging_page_fault(self, state):
+
+        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],stdout=subprocess.PIPE)
+        _lines = result.stdout.decode().strip().splitlines()
+        minflt, majflt = map(int, _lines[-1].split())
+        
+        if state == "before_prep_sim":
+            self.before_prep_sim_pf = (minflt, majflt)
+        elif state == "before_const":
+            self.before_const_pf = (minflt, majflt)
+        elif state == "before_presim":
+            self.before_presim_pf = (minflt, majflt)
+        elif state == "before_sim":
+            self.before_sim_pf = (minflt, majflt)
+        elif state == "after_sim":
+            self.after_sim_pf = (minflt, majflt)
+
+
+    def write_page_faults_log(self):
+        fn_page_fault = os.path.join(
+            self.data_dir, 'recordings',
+            '_'.join((self.label, 'page_faults_log', str(nest.Rank())))
+        )
+        os.makedirs(os.path.dirname(fn_page_fault), exist_ok=True)
+
+        rows = []
+        for label, attr in [
+            ("before_prep_sim", "before_prep_sim_pf"),
+            ("before_const",    "before_const_pf"),
+            ("before_presim",   "before_presim_pf"),
+            ("before_sim",      "before_sim_pf"),
+            ("after_sim",       "after_sim_pf"),
+        ]:
+            val = getattr(self, attr, None)
+            if isinstance(val, tuple) and len(val) == 2:
+                rows.append((label, int(val[0]), int(val[1])))
+
+        if rows:
+            np.savetxt(
+                fn_page_fault,
+                np.array(rows, dtype=object),
+                fmt=["%s", "%d", "%d"],   # label, minflt, majflt
+                delimiter=" ",
+                header="label minflt majflt",
+                comments=""
+            )
+
     def simulate(self):
         """
         Create the network and execute simulation.
         Record used memory and wallclock time.
         """
+        self.logging_page_fault("before_prep_sim")
         t0 = time.time()
         self.base_memory = self.memory()
         self.prepare()
@@ -309,6 +358,7 @@ class Simulation:
         self.time_kernel_prepare = t1 - t0
         print("Prepared simulation in {0:.2f} seconds.".format(self.time_kernel_prepare))
 
+        self.logging_page_fault("before_const")
         self.create_recording_devices()
         if self.custom_params['morph'] == True:
             self.create_neurons()
@@ -335,6 +385,7 @@ class Simulation:
         self.time_network_prepare = time.time() - t4
         print("Network preparation time in {0:.2f} seconds.".format(self.time_network_prepare))
 
+        self.logging_page_fault("before_presim")
         t5 = time.time()
         nest.Run(self.pre_T)
         self.time_presimulate = time.time() - t5
@@ -343,12 +394,14 @@ class Simulation:
             self.logging_presim()
         print("Presimulation time in {0:.2f} seconds.".format(self.time_presimulate))
 
+        self.logging_page_fault("before_sim")
         t6 = time.time()
         nest.Run(self.T)
         self.time_simulate = time.time() - t6
 
         self.total_memory = self.memory()
         print("Simulated network in {0:.2f} seconds.".format(self.time_simulate))
+        self.logging_page_fault("after_sim")
         self.logging()
 
     def memory(self):
@@ -375,16 +428,6 @@ class Simulation:
 
         self.presim_timers = dict(zip(timer_keys, values))
 
-        # --- add page-fault baseline (cumulative since process start) ---
-        import subprocess
-        import os
-        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],
-                                stdout=subprocess.PIPE)
-        _lines = result.stdout.decode().strip().splitlines()
-        _minflt0, _majflt0 = map(int, _lines[-1].split())
-        self._pf_presim = (_minflt0, _majflt0)
-        # ---------------------------------------------------------------
-
         fn = os.path.join(self.data_dir,
                           'recordings',
                           '_'.join((self.label,
@@ -395,9 +438,6 @@ class Simulation:
             for idx, value in enumerate(values):
                 f.write('presim_' + timer_keys[idx] + ' ' + str(value) + '\n')
             f.write('presim_local_spike_counter' + ' ' + str(nest.GetKernelStatus('local_spike_counter')) + '\n')
-            # ------write the presim page-fault snapshot-----------------
-            f.write('presim_min_flt ' + str(self._pf_presim[0]) + '\n')
-            f.write('presim_maj_flt ' + str(self._pf_presim[1]) + '\n')
 
     def logging(self):
         """
@@ -429,19 +469,6 @@ class Simulation:
                 else:
                     d[key] = r.item() if r.ndim == 0 else tuple(r.tolist())
 
-        # --- PAGE FAULTS (ADDED): snapshot at end + delta vs presim ---
-        import subprocess
-        import os
-        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],
-                                stdout=subprocess.PIPE)
-        _lines = result.stdout.decode().strip().splitlines()
-        _minflt1, _majflt1 = map(int, _lines[-1].split())
-        d['total_min_flt'] = _minflt1
-        d['total_maj_flt'] = _majflt1
-        if hasattr(self, '_pf_presim'):
-            d['sim_min_flt'] = max(0, _minflt1 - self._pf_presim[0])
-            d['sim_maj_flt'] = max(0, _majflt1 - self._pf_presim[1])
-        # --- END PAGE FAULTS (ADDED) ---
 
         print(d)
 
@@ -463,6 +490,9 @@ class Simulation:
         np.savetxt(fn_cycle_time, np.transpose([d['cycle_time_log']['times'], d['cycle_time_log']['communicate_time'],
                                                 #d['cycle_time_log']['communicate_time_global'], d['cycle_time_log']['communicate_time_local'],
                                                 d['cycle_time_log']['synch_time'], d['cycle_time_log']['local_spike_counter']]))
+        
+        self.write_page_faults_log()
+        
 
 
     def save_network_gids(self):
