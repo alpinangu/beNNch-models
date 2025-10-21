@@ -323,23 +323,33 @@ class Simulation:
         )
         os.makedirs(os.path.dirname(fn_page_fault), exist_ok=True)
 
+        def _get_pair(attr):
+            v = getattr(self, attr, None)
+            return v if (isinstance(v, tuple) and len(v) == 2) else None
+
+        # (label, later_attr, earlier_attr)
+        diff_pairs = [
+            ("construction_pf", "before_presim_pf", "before_const_pf"),
+            ("presim_pf", "before_sim_pf", "before_presim_pf"),
+            ("simulation_pf", "after_sim_pf", "before_sim_pf"),
+        ]
+
         rows = []
-        for label, attr in [
-            ("before_prep_sim", "before_prep_sim_pf"),
-            ("before_const",    "before_const_pf"),
-            ("before_presim",   "before_presim_pf"),
-            ("before_sim",      "before_sim_pf"),
-            ("after_sim",       "after_sim_pf"),
-        ]:
-            val = getattr(self, attr, None)
-            if isinstance(val, tuple) and len(val) == 2:
-                rows.append((label, int(val[0]), int(val[1])))
+        for label, later_attr, earlier_attr in diff_pairs:
+            later = _get_pair(later_attr)
+            earlier = _get_pair(earlier_attr)
+            if later and earlier:
+                minflt_delta = int(later[0]) - int(earlier[0])
+                majflt_delta = int(later[1]) - int(earlier[1])
+                rows.append((label, minflt_delta, majflt_delta))
+            else:
+                rows.append((label, -1, -1))
 
         if rows:
             np.savetxt(
                 fn_page_fault,
                 np.array(rows, dtype=object),
-                fmt=["%s", "%d", "%d"],   # label, minflt, majflt
+                fmt=["%s", "%d", "%d"],   # label, Δminflt, Δmajflt
                 delimiter=" ",
                 header="label minflt majflt",
                 comments=""
