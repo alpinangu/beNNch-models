@@ -100,7 +100,7 @@ memory_used['total_memory'] = memory()
 # initialization artifacts.
 
 raster_plot_interval = np.array([network.getStartms(),
-                                 network.getTotalms()])
+                                 network.getStartms() + 200])
 firing_rates_interval = np.array([network.getStartms(),
                                   network.getTotalms()])
 net.evaluate(raster_plot_interval, firing_rates_interval)
