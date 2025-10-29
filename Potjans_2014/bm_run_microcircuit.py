@@ -22,6 +22,7 @@ from bm_helpers import logging, memory
 import network
 import nest
 import time
+import numpy as np
 #import stimulus
 
 time_start = time.time()
@@ -89,6 +90,23 @@ net.simulate(sim_dict['t_sim'])
 t5 = time.time()
 py_timers['py_time_simulate'] = t5 - t4
 memory_used['total_memory'] = memory()
+
+###############################################################################
+# Plot a spike raster of the simulated neurons and a box plot of the firing
+# rates for each population.
+# For visual purposes only, spikes 100 ms before and 100 ms after the thalamic
+# stimulus time are plotted here by default.
+# The computation of spike rates discards the presimulation time to exclude
+# initialization artifacts.
+
+raster_plot_interval = np.array([network.getStartms(),
+                                 network.getTotalms()])
+firing_rates_interval = np.array([network.getStartms(),
+                                  network.getTotalms()])
+net.evaluate(raster_plot_interval, firing_rates_interval)
+time_evaluate = time.time()
+
+
 
 ###############################################################################
 # Summarize time measurements. Rank 0 usually takes longest because of print

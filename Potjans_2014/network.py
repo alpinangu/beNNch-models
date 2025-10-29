@@ -69,7 +69,7 @@ def getRateValues():
     return rate_values_hz
 
 def getTotalms():
-    return total_ms
+    return total_ms + t_presim
 
 def getStartms():
     return t_presim
