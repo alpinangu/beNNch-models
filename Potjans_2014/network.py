@@ -31,6 +31,7 @@ import os
 import numpy as np
 import nest
 import helpers
+import stimulus
 
 
 class Network:
@@ -576,14 +577,14 @@ class Network:
         self.thalamic_population = nest.Create(
             'parrot_neuron', n=self.stim_dict['num_th_neurons'])
 
-        self.poisson_th = nest.Create('poisson_generator')
+        self.poisson_th = nest.Create('inhomogeneous_poisson_generator')
         if self.nest_version == '3':
-            self.poisson_th.set(
-                rate=self.stim_dict['th_rate'],
-                start=self.stim_dict['th_start'],
-                stop=(
-                    self.stim_dict['th_start'] +
-                    self.stim_dict['th_duration']))
+            nest.SetStatus(self.poisson_th, {
+                "rate_times":  stimulus.getRateTimes(),
+                "rate_values": stimulus.getRateValues(),
+                "start": sim_dict['t_presim'],
+                "stop": stimulus.getTotalms()
+            })
         elif self.nest_version == '2':
             nest.SetStatus(
                 self.poisson_th,

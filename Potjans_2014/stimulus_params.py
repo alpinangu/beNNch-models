@@ -32,7 +32,7 @@ import numpy as np
 stim_dict = {
     # optional thalamic input
     # turn thalamic input on or off (True or False)
-    'thalamic_input': False,
+    'thalamic_input': True,
     # start of the thalamic input (in ms)
     'th_start': 700.0,
     # duration of the thalamic input (in ms)

@@ -22,6 +22,7 @@ from bm_helpers import logging, memory
 import network
 import nest
 import time
+import stimulus
 time_start = time.time()
 
 ###############################################################################
@@ -53,6 +54,9 @@ net_dict.update({
     'poisson_input': {poisson_input},
     'V0_type': {V0_type},
     'synapse_type': {synapse_type}})
+
+sim_dict.update({
+    't_sim': {stimulus.getTotalms}})
 
 py_timers = {}
 memory_used = {}
