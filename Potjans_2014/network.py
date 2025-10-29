@@ -582,7 +582,7 @@ class Network:
             nest.SetStatus(self.poisson_th, {
                 "rate_times":  stimulus.getRateTimes(),
                 "rate_values": stimulus.getRateValues(),
-                "start": sim_dict['t_presim'],
+                "start": stimulus.getStartms(),
                 "stop": stimulus.getTotalms()
             })
         elif self.nest_version == '2':
