@@ -31,8 +31,48 @@ import os
 import numpy as np
 import nest
 import helpers
-import stimulus
 
+from sim_params import sim_dict
+#import stimulus
+
+
+col0 = [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0,
+ 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 2, 0, 0, 2, 0, 0, 2, 1, 0, 1, 0, 2, 0, 1, 2, 0, 1, 0, 1, 1, 1, 2,
+ 1, 0, 0, 1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1,
+ 0, 0, 1, 0, 0, 1, 1, 1, 2, 0, 3, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0,
+ 0, 2, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1,
+ 0, 1, 0, 0, 1, 0, 0, 1, 0, 2, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 2, 0, 0, 1, 1, 0, 1,
+ 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 0, 1,
+ 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 2, 0, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 3, 0, 1, 1,
+ 0, 2, 0, 2, 0, 0, 2, 2, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0,
+ 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 2, 0, 2, 1, 0, 1, 0, 1,
+ 1, 0, 1, 0, 2, 0, 1, 1, 1, 1, 2, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1,
+ 1, 2, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0,
+ 0, 0]
+
+col0 = np.asarray(col0, dtype=float)
+
+bin_width_ms = 20.0
+
+
+t_presim = float(sim_dict.get('t_presim', 0.0))
+
+rate_times_ms = np.arange(col0.size, dtype=float) * bin_width_ms + t_presim
+rate_values_hz = col0 * (1000.0 / bin_width_ms)
+
+total_ms = col0.size * bin_width_ms
+
+def getRateTimes():
+    return rate_times_ms
+
+def getRateValues():
+    return rate_values_hz
+
+def getTotalms():
+    return total_ms
+
+def getStartms():
+    return t_presim
 
 class Network:
     """ Provides functions to setup NEST, to create and connect all nodes of
@@ -580,10 +620,10 @@ class Network:
         self.poisson_th = nest.Create('inhomogeneous_poisson_generator')
         if self.nest_version == '3':
             nest.SetStatus(self.poisson_th, {
-                "rate_times":  stimulus.getRateTimes(),
-                "rate_values": stimulus.getRateValues(),
-                "start": stimulus.getStartms(),
-                "stop": stimulus.getTotalms()
+                "rate_times":  getRateTimes(),
+                "rate_values": getRateValues(),
+                "start": getStartms(),
+                "stop": getTotalms()
             })
         elif self.nest_version == '2':
             nest.SetStatus(
