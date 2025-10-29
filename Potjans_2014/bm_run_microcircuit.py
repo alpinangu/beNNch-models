@@ -56,8 +56,7 @@ net_dict.update({
     'V0_type': {V0_type},
     'synapse_type': {synapse_type}})
 
-sim_dict.update({
-    't_sim': {network.getTotalms()}})
+sim_dict.update({'t_sim': network.getTotalms()})
 
 py_timers = {}
 memory_used = {}
