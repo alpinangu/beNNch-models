@@ -539,6 +539,11 @@ class Network:
                 self.spike_recorders = nest.Create('spike_recorder',
                                                    n=self.num_pops,
                                                    params=sd_dict)
+                
+                elec_params = {'record_to': 'ascii',
+                   'label': os.path.join(self.data_path, 'electrode')}
+                self.electrode_recorder = nest.Create('spike_recorder', n=1, params=elec_params)
+
             elif self.nest_version == '2':
                 sd_dict = {
                     'withgid': True,
@@ -740,6 +745,29 @@ class Network:
                         conn_spec=conn_dict_rec,
                         syn_spec=syn_dict)
 
+    def _pick_l23_subset(self, nE=64, nI=16, seed=None):
+
+
+
+        names = self.net_dict['populations']
+        L23E = self.pops[names.index('L23E')]   # NodeCollection (NEST 3)
+        L23I = self.pops[names.index('L23I')]
+
+        e_gids = np.array(L23E.get('global_id'))
+        i_gids = np.array(L23I.get('global_id'))
+
+        nE = min(nE, len(e_gids))
+        nI = min(nI, len(i_gids))
+
+        rng = np.random.default_rng(seed)
+        selE = rng.choice(e_gids, size=nE, replace=False)
+        selI = rng.choice(i_gids, size=nI, replace=False)
+
+        subset = nest.NodeCollection(list(selE) + list(selI))
+
+        return subset
+
+
     def __connect_recording_devices(self):
         """ Connects the recording devices to the microcircuit."""
         if nest.Rank == 0:
@@ -760,6 +788,11 @@ class Network:
                     nest.Connect([self.voltmeters[i]], target_pop)
                 else:
                     raise Exception('NEST version unknown.')
+                
+        if 'spike_recorder' in self.sim_dict['rec_dev']:
+            if self.nest_version == '3':
+                subset = self._pick_l23_subset() 
+                nest.Connect(subset, self.electrode_recorder[0])
 
     def __connect_poisson_bg_input(self):
         """ Connects the Poisson generators to the microcircuit."""
