@@ -747,25 +747,24 @@ class Network:
 
     def _pick_l23_subset(self, nE=64, nI=16, seed=None):
 
-
-
         names = self.net_dict['populations']
-        L23E = self.pops[names.index('L23E')]   # NodeCollection (NEST 3)
+        L23E = self.pops[names.index('L23E')]
         L23I = self.pops[names.index('L23I')]
 
-        e_gids = np.array(L23E.get('global_id'))
-        i_gids = np.array(L23I.get('global_id'))
-
-        nE = min(nE, len(e_gids))
-        nI = min(nI, len(i_gids))
+        e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
+        i_gids = np.asarray(L23I.get('global_id'), dtype=np.int64)
 
         rng = np.random.default_rng(seed)
-        selE = rng.choice(e_gids, size=nE, replace=False)
-        selI = rng.choice(i_gids, size=nI, replace=False)
+        selE = rng.choice(e_gids, size=min(nE, len(e_gids)), replace=False)
+        selI = rng.choice(i_gids, size=min(nI, len(i_gids)), replace=False)
 
-        subset = nest.NodeCollection(list(selE) + list(selI))
+        # IMPORTANT: sort ascending and ensure uniqueness
+        gids = np.unique(np.concatenate([selE, selI])).astype(int)
+        gids.sort()
 
+        subset = nest.NodeCollection(gids.tolist())
         return subset
+
 
 
     def __connect_recording_devices(self):
