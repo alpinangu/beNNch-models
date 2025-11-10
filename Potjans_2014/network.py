@@ -790,8 +790,16 @@ class Network:
                 
         if 'spike_recorder' in self.sim_dict['rec_dev']:
             if self.nest_version == '3':
-                subset = self._pick_l23_subset() 
-                nest.Connect(subset, self.electrode_recorder[0])
+                subset = self._pick_l23_subset()
+                nest.Connect(subset, self.electrode_recorder)  # no [0] needed
+                if nest.Rank == 0:  # avoid MPI spam
+                    print("subset size:", len(subset), flush=True)
+                    print("first few gids:", list(subset)[:10], flush=True)
+                    cc = nest.GetConnections(subset, self.electrode_recorder)
+                    print("connections -> electrode:", cc.size(), flush=True)
+                    print("n_events per VP:", nest.GetStatus(self.electrode_recorder, 'n_events'), flush=True)
+                    print("files:", nest.GetStatus(self.electrode_recorder, 'filenames'), flush=True)
+
 
     def __connect_poisson_bg_input(self):
         """ Connects the Poisson generators to the microcircuit."""
