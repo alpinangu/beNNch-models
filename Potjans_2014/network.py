@@ -763,12 +763,19 @@ class Network:
                         conn_spec=conn_dict_rec,
                         syn_spec=syn_dict)
 
-    def _pick_l23_subsets(self, n_electrodes=128, n_exc_subsets=102, seed=42):
+    def _pick_l23_subsets(self,
+                      n_electrodes=128,
+                      neurons_per_subset=10,
+                      exc_fraction=0.8,
+                      seed=42):
         """
-        Return a list of NodeCollections, one neuron per subset/electrode.
-        The first `n_exc_subsets` subsets contain one L23E neuron each,
-        the remaining subsets contain one L23I neuron each.
-        No neuron is used more than once.
+        Return a list of NodeCollections, one subset per electrode.
+
+        - Number of subsets: n_electrodes
+        - Size of each subset: neurons_per_subset neurons
+        - Approximately exc_fraction (default 0.8) of neurons are excitatory (L23E),
+        the rest inhibitory (L23I), per subset.
+        - No neuron is used more than once globally.
         """
 
         # 1. Get L2/3 populations
@@ -780,38 +787,59 @@ class Network:
         e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
         i_gids = np.asarray(L23I.get('global_id'), dtype=np.int64)
 
-        # 3. Work out how many inhibitory subsets we need
-        n_inh_subsets = n_electrodes - n_exc_subsets   # e.g. 128 - 102 = 26
+        # 3. How many exc/inh neurons per subset?
+        n_exc_per_subset = int(round(exc_fraction * neurons_per_subset))
+        n_inh_per_subset = neurons_per_subset - n_exc_per_subset
 
-        # 4. Safety checks: do we have enough neurons?
-        if n_exc_subsets > len(e_gids):
+        # 4. Total number of neurons needed of each type
+        total_exc_needed = n_electrodes * n_exc_per_subset
+        total_inh_needed = n_electrodes * n_inh_per_subset
+
+        # 5. Safety checks: do we have enough neurons?
+        if total_exc_needed > len(e_gids):
             raise ValueError(
-                f"Need {n_exc_subsets} excitatory neurons, but only {len(e_gids)} available."
+                f"Need {total_exc_needed} excitatory neurons "
+                f"({n_exc_per_subset} per subset × {n_electrodes} subsets), "
+                f"but only {len(e_gids)} available."
             )
-        if n_inh_subsets > len(i_gids):
+        if total_inh_needed > len(i_gids):
             raise ValueError(
-                f"Need {n_inh_subsets} inhibitory neurons, but only {len(i_gids)} available."
+                f"Need {total_inh_needed} inhibitory neurons "
+                f"({n_inh_per_subset} per subset × {n_electrodes} subsets), "
+                f"but only {len(i_gids)} available."
             )
 
-        # 5. One RNG (Case 3): reproducible, but different choices
+        # 6. One RNG: reproducible, but different choices
         rng = np.random.default_rng(seed)
 
-        # 6. Sample distinct neurons for each subset, no overlap
-        e_selected = rng.choice(e_gids, size=n_exc_subsets, replace=False)
-        i_selected = rng.choice(i_gids, size=n_inh_subsets, replace=False)
+        # 7. Sample *all* needed excitatory and inhibitory neurons once, without replacement
+        if total_exc_needed > 0:
+            e_selected = rng.choice(e_gids, size=total_exc_needed, replace=False)
+            e_selected = e_selected.reshape(n_electrodes, n_exc_per_subset)
+        else:
+            # no excitatory neurons per subset
+            e_selected = np.empty((n_electrodes, 0), dtype=np.int64)
 
-        # 7. Build subsets: one neuron per NodeCollection
+        if total_inh_needed > 0:
+            i_selected = rng.choice(i_gids, size=total_inh_needed, replace=False)
+            i_selected = i_selected.reshape(n_electrodes, n_inh_per_subset)
+        else:
+            # no inhibitory neurons per subset
+            i_selected = np.empty((n_electrodes, 0), dtype=np.int64)
+
+        # 8. Build subsets: one NodeCollection per electrode/subset
         subsets = []
+        for k in range(n_electrodes):
+            # Concatenate E and I for this subset
+            gids = np.concatenate([e_selected[k], i_selected[k]])
 
-        # First 102 (n_exc_subsets) subsets are excitatory
-        for gid in e_selected:
-            subsets.append(nest.NodeCollection([int(gid)]))
+            # Sort for reproducibility / readability (optional)
+            gids = np.sort(gids.astype(int))
 
-        # Remaining 26 subsets are inhibitory
-        for gid in i_selected:
-            subsets.append(nest.NodeCollection([int(gid)]))
+            subsets.append(nest.NodeCollection(gids.tolist()))
 
         return subsets
+
 
 
 
