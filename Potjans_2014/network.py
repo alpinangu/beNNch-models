@@ -33,9 +33,10 @@ import nest
 import helpers
 
 from sim_params import sim_dict
-#import stimulus
+import stimulus
 
 
+"""
 col0 = [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0,
  0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 2, 0, 0, 2, 0, 0, 2, 1, 0, 1, 0, 2, 0, 1, 2, 0, 1, 0, 1, 1, 1, 2,
  1, 0, 0, 1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1,
@@ -73,6 +74,7 @@ def getTotalms():
 
 def getStartms():
     return t_presim
+"""
 
 class Network:
     """ Provides functions to setup NEST, to create and connect all nodes of
@@ -540,9 +542,25 @@ class Network:
                                                    n=self.num_pops,
                                                    params=sd_dict)
                 
-                elec_params = {'record_to': 'ascii',
-                   'label': os.path.join(self.data_path, 'electrode')}
-                self.electrode_recorder = nest.Create('spike_recorder', n=1, params=elec_params)
+                ############
+                n_electrodes = 128
+
+                labels = [
+                    os.path.join(self.data_path, f"electrode_{i:03d}")
+                    for i in range(n_electrodes)
+                ]
+
+                elec_params_list = [
+                    {'record_to': 'ascii', 'label': lbl}
+                    for lbl in labels
+                ]
+
+                self.electrode_recorders = nest.Create(
+                    'spike_recorder',
+                    n=n_electrodes,
+                    params=elec_params_list,
+                )
+                ############
 
             elif self.nest_version == '2':
                 sd_dict = {
@@ -625,10 +643,10 @@ class Network:
         self.poisson_th = nest.Create('inhomogeneous_poisson_generator')
         if self.nest_version == '3':
             nest.SetStatus(self.poisson_th, {
-                "rate_times":  getRateTimes(),
-                "rate_values": getRateValues(),
-                "start": getStartms(),
-                "stop": getTotalms()
+                "rate_times":  stimulus.getRateTimes(),
+                "rate_values": stimulus.getRateValues(),
+                "start": stimulus.getStartms(),
+                "stop": stimulus.getTotalms()
             })
         elif self.nest_version == '2':
             nest.SetStatus(
@@ -745,26 +763,57 @@ class Network:
                         conn_spec=conn_dict_rec,
                         syn_spec=syn_dict)
 
-    def _pick_l23_subset(self, nE=64, nI=16, seed=None):
+    def _pick_l23_subsets(self, n_electrodes=128, nE=64, nI=16, seed=sim_dict['rng_seed']):
+        """
+        Return a list of NodeCollections, one L2/3 subset per electrode.
+        Each neuron (E or I) appears in at most one subset (no overlap).
+        """
 
         names = self.net_dict['populations']
         L23E = self.pops[names.index('L23E')]
         L23I = self.pops[names.index('L23I')]
 
+        # Get all L2/3 E and I GIDs
         e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
         i_gids = np.asarray(L23I.get('global_id'), dtype=np.int64)
 
+        # One RNG for everything (Case 3)
         rng = np.random.default_rng(seed)
-        selE = rng.choice(e_gids, size=min(nE, len(e_gids)), replace=False)
-        selI = rng.choice(i_gids, size=min(nI, len(i_gids)), replace=False)
 
-        # IMPORTANT: sort ascending and ensure uniqueness
-        gids = np.unique(np.concatenate([selE, selI])).astype(int)
-        gids.sort()
+        # Total neurons needed
+        total_E = n_electrodes * nE
+        total_I = n_electrodes * nI
 
-        subset = nest.NodeCollection(gids.tolist())
-        return subset
+        # Safety check: do we have enough neurons?
+        if total_E > len(e_gids):
+            raise ValueError(
+                f"Need {total_E} L23E neurons, but only {len(e_gids)} available."
+            )
+        if total_I > len(i_gids):
+            raise ValueError(
+                f"Need {total_I} L23I neurons, but only {len(i_gids)} available."
+            )
 
+        # Sample all needed excitatory and inhibitory neurons ONCE, without replacement
+        e_selected = rng.choice(e_gids, size=total_E, replace=False)
+        i_selected = rng.choice(i_gids, size=total_I, replace=False)
+
+        # Reshape into (n_electrodes, nE) and (n_electrodes, nI)
+        e_selected = e_selected.reshape(n_electrodes, nE)
+        i_selected = i_selected.reshape(n_electrodes, nI)
+
+        subsets = []
+        for k in range(n_electrodes):
+            # For electrode k: take its E and I neurons
+            gids = np.concatenate([e_selected[k], i_selected[k]])
+            # No duplicates *should* exist, but be safe & sorted
+            gids = np.unique(gids.astype(int))
+            gids.sort()
+
+            subset = nest.NodeCollection(gids.tolist())
+            subsets.append(subset)
+
+        return subsets
 
 
     def __connect_recording_devices(self):
@@ -790,15 +839,10 @@ class Network:
                 
         if 'spike_recorder' in self.sim_dict['rec_dev']:
             if self.nest_version == '3':
-                subset = self._pick_l23_subset()
-                nest.Connect(subset, self.electrode_recorder)  # no [0] needed
-                if nest.Rank == 0:  # avoid MPI spam
-                    print("subset size:", len(subset), flush=True)
-                    print("first few gids:", list(subset)[:10], flush=True)
-                    cc = nest.GetConnections(subset, self.electrode_recorder)
-                    print("connections -> electrode:", cc.size(), flush=True)
-                    print("n_events per VP:", nest.GetStatus(self.electrode_recorder, 'n_events'), flush=True)
-                    print("files:", nest.GetStatus(self.electrode_recorder, 'filenames'), flush=True)
+                subsets = self._pick_l23_subsets()
+                for i, subset in enumerate(subsets):
+                    nest.Connect(subset, self.electrode_recorders[i])
+
 
 
     def __connect_poisson_bg_input(self):

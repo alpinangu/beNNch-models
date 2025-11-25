@@ -23,7 +23,7 @@ import network
 import nest
 import time
 import numpy as np
-#import stimulus
+import stimulus
 
 time_start = time.time()
 
@@ -42,8 +42,8 @@ time_start = time.time()
 
 
 sim_dict.update({
-    't_presim': {model_time_presim},
-    't_sim': {model_time_sim},
+    't_presim': {model_time_presim}, #presim phase
+    't_sim': {model_time_sim}, #only the simulation phase
     'rec_dev': [{record_spikes}],
     'rng_seed': {rng_seed},
     'local_num_threads': {threads_per_task},
@@ -57,7 +57,7 @@ net_dict.update({
     'V0_type': {V0_type},
     'synapse_type': {synapse_type}})
 
-sim_dict.update({'t_sim': network.getTotalms()})
+stimulus.update_sim_dict()
 
 py_timers = {}
 memory_used = {}
