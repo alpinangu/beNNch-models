@@ -99,10 +99,10 @@ memory_used['total_memory'] = memory()
 # The computation of spike rates discards the presimulation time to exclude
 # initialization artifacts.
 
-raster_plot_interval = np.array([network.getStartms(),
-                                 network.getStartms() + 200])
-firing_rates_interval = np.array([network.getStartms(),
-                                  network.getTotalms()])
+raster_plot_interval = np.array([stimulus.getStartms(),
+                                 stimulus.getStartms() + 200])
+firing_rates_interval = np.array([stimulus.getStartms(),
+                                  stimulus.getTotalms()])
 net.evaluate(raster_plot_interval, firing_rates_interval)
 time_evaluate = time.time()
 
