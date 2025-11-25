@@ -763,57 +763,56 @@ class Network:
                         conn_spec=conn_dict_rec,
                         syn_spec=syn_dict)
 
-    def _pick_l23_subsets(self, n_electrodes=128, nE=64, nI=16, seed=sim_dict['rng_seed']):
+    def _pick_l23_subsets(self, n_electrodes=128, n_exc_subsets=102, seed=42):
         """
-        Return a list of NodeCollections, one L2/3 subset per electrode.
-        Each neuron (E or I) appears in at most one subset (no overlap).
+        Return a list of NodeCollections, one neuron per subset/electrode.
+        The first `n_exc_subsets` subsets contain one L23E neuron each,
+        the remaining subsets contain one L23I neuron each.
+        No neuron is used more than once.
         """
 
+        # 1. Get L2/3 populations
         names = self.net_dict['populations']
         L23E = self.pops[names.index('L23E')]
         L23I = self.pops[names.index('L23I')]
 
-        # Get all L2/3 E and I GIDs
+        # 2. Extract GIDs as numpy arrays
         e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
         i_gids = np.asarray(L23I.get('global_id'), dtype=np.int64)
 
-        # One RNG for everything (Case 3)
+        # 3. Work out how many inhibitory subsets we need
+        n_inh_subsets = n_electrodes - n_exc_subsets   # e.g. 128 - 102 = 26
+
+        # 4. Safety checks: do we have enough neurons?
+        if n_exc_subsets > len(e_gids):
+            raise ValueError(
+                f"Need {n_exc_subsets} excitatory neurons, but only {len(e_gids)} available."
+            )
+        if n_inh_subsets > len(i_gids):
+            raise ValueError(
+                f"Need {n_inh_subsets} inhibitory neurons, but only {len(i_gids)} available."
+            )
+
+        # 5. One RNG (Case 3): reproducible, but different choices
         rng = np.random.default_rng(seed)
 
-        # Total neurons needed
-        total_E = n_electrodes * nE
-        total_I = n_electrodes * nI
+        # 6. Sample distinct neurons for each subset, no overlap
+        e_selected = rng.choice(e_gids, size=n_exc_subsets, replace=False)
+        i_selected = rng.choice(i_gids, size=n_inh_subsets, replace=False)
 
-        # Safety check: do we have enough neurons?
-        if total_E > len(e_gids):
-            raise ValueError(
-                f"Need {total_E} L23E neurons, but only {len(e_gids)} available."
-            )
-        if total_I > len(i_gids):
-            raise ValueError(
-                f"Need {total_I} L23I neurons, but only {len(i_gids)} available."
-            )
-
-        # Sample all needed excitatory and inhibitory neurons ONCE, without replacement
-        e_selected = rng.choice(e_gids, size=total_E, replace=False)
-        i_selected = rng.choice(i_gids, size=total_I, replace=False)
-
-        # Reshape into (n_electrodes, nE) and (n_electrodes, nI)
-        e_selected = e_selected.reshape(n_electrodes, nE)
-        i_selected = i_selected.reshape(n_electrodes, nI)
-
+        # 7. Build subsets: one neuron per NodeCollection
         subsets = []
-        for k in range(n_electrodes):
-            # For electrode k: take its E and I neurons
-            gids = np.concatenate([e_selected[k], i_selected[k]])
-            # No duplicates *should* exist, but be safe & sorted
-            gids = np.unique(gids.astype(int))
-            gids.sort()
 
-            subset = nest.NodeCollection(gids.tolist())
-            subsets.append(subset)
+        # First 102 (n_exc_subsets) subsets are excitatory
+        for gid in e_selected:
+            subsets.append(nest.NodeCollection([int(gid)]))
+
+        # Remaining 26 subsets are inhibitory
+        for gid in i_selected:
+            subsets.append(nest.NodeCollection([int(gid)]))
 
         return subsets
+
 
 
     def __connect_recording_devices(self):
