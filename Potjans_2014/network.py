@@ -625,40 +625,62 @@ class Network:
             raise Exception('NEST version unknown.')
 
     def __create_thalamic_stim_input(self):
-        """ Creates the thalamic neuronal population if specified in
-        ``stim_dict``.
+        """Creates multiple thalamic neuronal populations and their Poisson input.
 
         Thalamic neurons are of type ``parrot_neuron`` and receive input from a
-        Poisson generator.
-        Note that the number of thalamic neurons is not scaled with
-        ``N_scaling``.
+        (inhomogeneous) Poisson generator.
 
+        We now create:
+        - num_th_pops independent thalamic populations, each with num_th_neurons
+        - one inhomogeneous_poisson_generator per population
         """
+
         if nest.Rank() == 0:
             print('Creating thalamic input for external stimulation.')
 
-        self.thalamic_population = nest.Create(
-            'parrot_neuron', n=self.stim_dict['num_th_neurons'])
+        # Number of independent thalamic populations = number of stimulus channels
+        self.num_th_pops = int(stimulus.getNumChannels())
+        self.stim_dict['num_th_pops'] = self.num_th_pops
 
-        self.poisson_th = nest.Create('inhomogeneous_poisson_generator')
-        if self.nest_version == '3':
-            nest.SetStatus(self.poisson_th, {
-                "rate_times":  stimulus.getRateTimes(),
-                "rate_values": stimulus.getRateValues(),
-                "start": stimulus.getStartms(),
-                "stop": stimulus.getTotalms()
-            })
-        elif self.nest_version == '2':
-            nest.SetStatus(
-                self.poisson_th,
-                params={
-                    'rate': self.stim_dict['th_rate'],
+        # Python lists for convenience
+        self.thalamic_pops = []       # list of NodeCollections (parrot_neuron)
+        self.poisson_th_list = []     # list of NodeCollections (size 1 each)
+
+        for k in range(self.num_th_pops):
+            # 1) Create thalamic population k
+            th_pop = nest.Create(
+                'parrot_neuron',
+                n=self.stim_dict['num_th_neurons']
+            )
+            self.thalamic_pops.append(th_pop)
+
+            # 2) Create its inhomogeneous Poisson generator
+            pg = nest.Create('inhomogeneous_poisson_generator')
+
+            if self.nest_version == '3':
+                # Channel-specific rate profile from stimulus
+                nest.SetStatus(pg, {
+                    "rate_times":  stimulus.getRateTimes(k),   # same times for all, k ignored
+                    "rate_values": stimulus.getRateValues(k),  # column k of your data
+                    "start":       stimulus.getStartms(),
+                    "stop":        stimulus.getTotalms()
+                })
+
+            elif self.nest_version == '2':
+                # Fallback for NEST 2: homogeneous Poisson, or adapt if you want per-channel
+                nest.SetStatus(pg, params={
+                    'rate':  self.stim_dict['th_rate'],
                     'start': self.stim_dict['th_start'],
-                    'stop': (
-                        self.stim_dict['th_start'] +
-                        self.stim_dict['th_duration'])})
-        else:
-            raise Exception('NEST version unknown.')
+                    'stop':  (self.stim_dict['th_start'] +
+                            self.stim_dict['th_duration'])
+                })
+
+            else:
+                raise Exception('NEST version unknown.')
+
+            self.poisson_th_list.append(pg)
+
+        
 
     def __create_dc_stim_input(self):
         """ Creates DC generators for external stimulation if specified
@@ -765,7 +787,7 @@ class Network:
 
     def _pick_l23_subsets(self,
                       n_electrodes=128,
-                      neurons_per_subset=2,
+                      neurons_per_subset=1,
                       exc_fraction=0.8,
                       seed=42):
         """
@@ -907,7 +929,8 @@ class Network:
             print('Connecting thalamic input.')
 
         # connect Poisson input to thalamic population
-        nest.Connect(self.poisson_th, self.thalamic_population)
+        for pg, th_pop in zip(self.poisson_th_list, self.thalamic_pops):
+            nest.Connect(pg, th_pop)
 
         # connect thalamic population to neuronal populations
         for i, target_pop in enumerate(self.pops):
@@ -954,9 +977,13 @@ class Network:
             else:
                 raise Exception('NEST version unknown.')
 
-            nest.Connect(
-                self.thalamic_population, target_pop,
-                conn_spec=conn_dict_th, syn_spec=syn_dict_th)
+            # Now apply this same connection spec for *each* thalamic population
+            for th_pop in self.thalamic_pops:
+                nest.Connect(
+                    th_pop, target_pop,
+                    conn_spec=conn_dict_th,
+                    syn_spec=syn_dict_th
+                )
 
     def __connect_dc_stim_input(self):
         """ Connects the DC generators to the neuronal populations. """
