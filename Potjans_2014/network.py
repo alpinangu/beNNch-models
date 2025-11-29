@@ -650,7 +650,7 @@ class Network:
             # 1) Create thalamic population k
             th_pop = nest.Create(
                 'parrot_neuron',
-                n=self.stim_dict['num_th_neurons']
+                n=int(self.stim_dict['num_th_neurons']/self.num_th_pops)
             )
             self.thalamic_pops.append(th_pop)
 
