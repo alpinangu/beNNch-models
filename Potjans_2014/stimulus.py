@@ -6,7 +6,7 @@ import os
 here = os.path.dirname(os.path.abspath(__file__))
 
 data_dir = os.path.join(here, "data")
-file_path = os.path.join(data_dir, "train_t12.2022.04.28_1.npy")
+file_path = os.path.join(data_dir, "train_t12.2022.04.28_sentence_1.npy")
 
 # --------------------------------------------------------------------
 # Load stimulus data
