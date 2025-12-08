@@ -787,8 +787,8 @@ class Network:
 
     def _pick_l23_subsets(self,
                       n_electrodes=128,
-                      neurons_per_subset=2,
-                      exc_fraction=1,
+                      neurons_per_subset=1,
+                      exc_fraction=0,
                       seed=42):
         """
         Return a list of NodeCollections, one subset per electrode.
@@ -802,8 +802,8 @@ class Network:
 
         # 1. Get L2/3 populations
         names = self.net_dict['populations']
-        L23E = self.pops[names.index('L6E')]
-        L23I = self.pops[names.index('L6I')]
+        L23E = self.pops[names.index('L4E')]
+        L23I = self.pops[names.index('L4I')]
 
         # 2. Extract GIDs as numpy arrays
         e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
