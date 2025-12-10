@@ -639,7 +639,8 @@ class Network:
             print('Creating thalamic input for external stimulation.')
 
         # Number of independent thalamic populations = number of stimulus channels
-        self.num_th_pops = int(stimulus.getNumChannels())
+        #self.num_th_pops = int(stimulus.getNumChannels())
+        self.num_th_pops = 1
         self.stim_dict['num_th_pops'] = self.num_th_pops
 
         # Python lists for convenience
