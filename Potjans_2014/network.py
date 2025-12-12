@@ -788,7 +788,7 @@ class Network:
 
     def _pick_l23_subsets(self,
                       n_electrodes=128,
-                      neurons_per_subset=1,
+                      neurons_per_subset=3,
                       exc_fraction=0,
                       seed=42):
         """
