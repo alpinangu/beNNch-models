@@ -497,9 +497,8 @@ class Simulation:
                                                'cycle_time_log',
                                                str(nest.Rank()))))
 
-        np.savetxt(fn_cycle_time, np.transpose([d['cycle_time_log']['times'], d['cycle_time_log']['communicate_time'],
-                                                #d['cycle_time_log']['communicate_time_global'], d['cycle_time_log']['communicate_time_local'],
-                                                d['cycle_time_log']['synch_time'], d['cycle_time_log']['local_spike_counter']]))
+        np.savetxt(fn_cycle_time, np.transpose([d['cycle_time_log']['times'], d['cycle_time_log']['communicate_time'], 
+                                                d['cycle_time_log']['local_spike_counter']]))
         
         self.write_page_faults_log()
         
