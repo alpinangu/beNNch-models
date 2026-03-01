@@ -614,11 +614,11 @@ class Network:
         self.thalamic_pops = []       # list of NodeCollections (parrot_neuron)
         self.poisson_th_list = []     # list of NodeCollections (size 1 each)
 
-        for k in range(self.num_th_pops):
+        for k in range(self.stim_dict['num_th_pops']):
             # 1) Create thalamic population k
             th_pop = nest.Create(
                 'parrot_neuron',
-                n=int(self.stim_dict['num_th_neurons']/self.num_th_pops)
+                n=int(self.stim_dict['num_th_neurons']/self.stim_dict['num_th_pops'])
             )
             self.thalamic_pops.append(th_pop)
 
