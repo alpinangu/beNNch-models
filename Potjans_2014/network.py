@@ -36,46 +36,6 @@ from sim_params import sim_dict
 import stimulus
 
 
-"""
-col0 = [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0,
- 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 2, 0, 0, 2, 0, 0, 2, 1, 0, 1, 0, 2, 0, 1, 2, 0, 1, 0, 1, 1, 1, 2,
- 1, 0, 0, 1, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1,
- 0, 0, 1, 0, 0, 1, 1, 1, 2, 0, 3, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0,
- 0, 2, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1,
- 0, 1, 0, 0, 1, 0, 0, 1, 0, 2, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 0, 0, 1, 0, 2, 0, 0, 1, 1, 0, 1,
- 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 0, 1,
- 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 2, 0, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 3, 0, 1, 1,
- 0, 2, 0, 2, 0, 0, 2, 2, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0,
- 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 2, 0, 2, 1, 0, 1, 0, 1,
- 1, 0, 1, 0, 2, 0, 1, 1, 1, 1, 2, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1,
- 1, 2, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0,
- 0, 0]
-
-col0 = np.asarray(col0, dtype=float)
-
-bin_width_ms = 20.0
-
-
-t_presim = float(sim_dict.get('t_presim', 0.0))
-
-rate_times_ms = np.arange(col0.size, dtype=float) * bin_width_ms + t_presim
-rate_values_hz = col0 * (1000.0 / bin_width_ms)
-
-total_ms = col0.size * bin_width_ms
-
-def getRateTimes():
-    return rate_times_ms
-
-def getRateValues():
-    return rate_values_hz
-
-def getTotalms():
-    return total_ms + t_presim
-
-def getStartms():
-    return t_presim
-"""
-
 class Network:
     """ Provides functions to setup NEST, to create and connect all nodes of
     the network, to simulate, and to evaluate the resulting spike data.
@@ -140,10 +100,14 @@ class Network:
         if len(self.sim_dict['rec_dev']) > 0:
             self.__create_recording_devices()
         if self.net_dict['poisson_input']:
+            raise Exception('POISSON INPUT IS ON')
             self.__create_poisson_bg_input()
         if self.stim_dict['thalamic_input']:
             self.__create_thalamic_stim_input()
+        else:
+            raise Exception('THALAMIC INPUT IS OFF')
         if self.stim_dict['dc_input']:
+            raise Exception('DC INPUT IS ON')
             self.__create_dc_stim_input()
 
     def connect(self):
@@ -170,10 +134,14 @@ class Network:
         if len(self.sim_dict['rec_dev']) > 0:
             self.__connect_recording_devices()
         if self.net_dict['poisson_input']:
+            raise Exception('POISSON INPUT IS ON')
             self.__connect_poisson_bg_input()
         if self.stim_dict['thalamic_input']:
             self.__connect_thalamic_stim_input()
+        else:
+            raise Exception('THALAMIC INPUT IS OFF')
         if self.stim_dict['dc_input']:
+            raise Exception('DC INPUT IS ON')
             self.__connect_dc_stim_input()
 
         nest.Prepare()
@@ -640,8 +608,7 @@ class Network:
 
         # Number of independent thalamic populations = number of stimulus channels
         #self.num_th_pops = int(stimulus.getNumChannels())
-        self.num_th_pops = 1
-        self.stim_dict['num_th_pops'] = self.num_th_pops
+        self.stim_dict['num_th_pops'] = 1
 
         # Python lists for convenience
         self.thalamic_pops = []       # list of NodeCollections (parrot_neuron)
@@ -661,20 +628,15 @@ class Network:
             if self.nest_version == '3':
                 # Channel-specific rate profile from stimulus
                 nest.SetStatus(pg, {
-                    "rate_times":  stimulus.getRateTimes(k),   # same times for all, k ignored
-                    "rate_values": stimulus.getRateValues(k),  # column k of your data
+                    "rate_times":  stimulus.getRateTimes(),   # same times for all, k ignored
+                    "rate_values": stimulus.getRateValues(),  # column k of your data
                     "start":       stimulus.getStartms(),
                     "stop":        stimulus.getTotalms()
                 })
 
             elif self.nest_version == '2':
                 # Fallback for NEST 2: homogeneous Poisson, or adapt if you want per-channel
-                nest.SetStatus(pg, params={
-                    'rate':  self.stim_dict['th_rate'],
-                    'start': self.stim_dict['th_start'],
-                    'stop':  (self.stim_dict['th_start'] +
-                            self.stim_dict['th_duration'])
-                })
+                raise Exception('NEST VERSION IS 2')
 
             else:
                 raise Exception('NEST version unknown.')
@@ -789,26 +751,26 @@ class Network:
     def _pick_l23_subsets(self,
                       n_electrodes=128,
                       neurons_per_subset=3,
-                      exc_fraction=0,
+                      exc_fraction=0.8,
                       seed=42):
         """
         Return a list of NodeCollections, one subset per electrode.
 
         - Number of subsets: n_electrodes
         - Size of each subset: neurons_per_subset neurons
-        - Approximately exc_fraction (default 0.8) of neurons are excitatory (L23E),
-        the rest inhibitory (L23I), per subset.
+        - Approximately exc_fraction (default 0.8) of neurons are excitatory (L4E),
+        the rest inhibitory (L4I), per subset.
         - No neuron is used more than once globally.
         """
 
         # 1. Get L2/3 populations
         names = self.net_dict['populations']
-        L23E = self.pops[names.index('L4E')]
-        L23I = self.pops[names.index('L4I')]
+        L4E = self.pops[names.index('L4E')]
+        L4I = self.pops[names.index('L4I')]
 
         # 2. Extract GIDs as numpy arrays
-        e_gids = np.asarray(L23E.get('global_id'), dtype=np.int64)
-        i_gids = np.asarray(L23I.get('global_id'), dtype=np.int64)
+        e_gids = np.asarray(L4E.get('global_id'), dtype=np.int64)
+        i_gids = np.asarray(L4I.get('global_id'), dtype=np.int64)
 
         # 3. How many exc/inh neurons per subset?
         n_exc_per_subset = int(round(exc_fraction * neurons_per_subset))

@@ -4,23 +4,21 @@ import os
 
 # Absolute path to the directory of this script
 here = os.path.dirname(os.path.abspath(__file__))
-
 data_dir = os.path.join(here, "data")
-file_path = os.path.join(data_dir, "train_t12.2022.04.28_sentence_4.npy")
+file_path = os.path.join(data_dir, "sentence_0_smoothed_rates.npy")
 
 # --------------------------------------------------------------------
 # Load stimulus data
 # --------------------------------------------------------------------
-sentence_data = np.load(file_path)
+rate_values_hz = np.load(file_path)
 
 # Ensure data is 2D: (num_bins, num_channels)
-if sentence_data.ndim == 1:
-    # If the file only had a single column originally
-    sentence_data = sentence_data[:, np.newaxis]
+if rate_values_hz.ndim != 1:
+    raise Exception("RATE IS NOT A 1D LIST/ARRAY")
 
-sentence_data = sentence_data.astype(float)
+rate_values_hz = rate_values_hz.astype(float).tolist()
 
-num_bins, num_channels = sentence_data.shape
+num_bins = rate_values_hz.size
 
 # --------------------------------------------------------------------
 # Build time axis and convert to rates
@@ -32,23 +30,14 @@ t_presim = float(sim_dict.get('t_presim', 0.0))
 # Time points for each bin (same for all channels)
 rate_times_ms = np.arange(num_bins, dtype=float) * bin_width_ms + t_presim
 
-# Convert counts per bin into Hz:
-#    (spikes per bin) * (1000 ms / bin_width_ms) = spikes per second (Hz)
-rate_values_hz = sentence_data * (1000.0 / bin_width_ms)  # shape: (num_bins, num_channels)
-
 # Total simulation time contributed by the stimulus (excluding t_presim)
 t_sim = num_bins * bin_width_ms
 
 
 # --------------------------------------------------------------------
-# Public API
+# API
 # --------------------------------------------------------------------
-def getNumChannels():
-    """Return the number of stimulus channels (columns)."""
-    return num_channels
-
-
-def getRateTimes(channel=None):
+def getRateTimes():
     """
     Return the time points in ms for the bins.
     The time axis is the same for all channels, so `channel` is ignored.
@@ -56,12 +45,12 @@ def getRateTimes(channel=None):
     return rate_times_ms
 
 
-def getRateValues(channel=0):
+def getRateValues():
     """
     Return the rate values (Hz) for a given channel index.
     channel: int, 0-based index (0 <= channel < num_channels)
     """
-    return rate_values_hz[:, channel]
+    return rate_values_hz
 
 
 def getTotalms():
