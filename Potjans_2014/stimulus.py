@@ -18,7 +18,7 @@ if rate_values_hz.ndim != 1:
 
 rate_values_hz = rate_values_hz.astype(float).tolist()
 
-num_bins = rate_values_hz.size
+num_bins = len(rate_values_hz)
 
 # --------------------------------------------------------------------
 # Build time axis and convert to rates
