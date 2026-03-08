@@ -52,7 +52,7 @@ def memory():
     try:
         mem = nest.ll_api.sli_func('memory_thisjob')
     except AttributeError:
-        mem = nest.sli_func('memory_thisjob')
+        mem = -1 #nest.sli_func('memory_thisjob') sli is gone
     if isinstance(mem, dict):
         return mem['heap']
     else:
