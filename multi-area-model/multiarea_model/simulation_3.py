@@ -402,7 +402,7 @@ class Simulation:
         """
         Use NEST's memory wrapper function to record used memory.
         """
-        mem = nest.ll_api.sli_func('memory_thisjob')
+        mem = -1 #nest.ll_api.sli_func('memory_thisjob')
         if isinstance(mem, dict):
             return mem['heap']
         else:
