@@ -22,6 +22,7 @@ import os
 import pprint
 import shutil
 import time
+import subprocess
 
 from .analysis_helpers import _load_npy_to_dict, model_iter
 from config import base_path
@@ -283,11 +284,69 @@ class Simulation:
         t1 = time.time()
         self.time_connect_cc = t1 - t0
 
+    def logging_page_fault(self, state):
+
+        result = subprocess.run(['ps', '-o', 'min_flt,maj_flt', str(os.getpid())],stdout=subprocess.PIPE)
+        _lines = result.stdout.decode().strip().splitlines()
+        minflt, majflt = map(int, _lines[-1].split())
+
+        if state == "before_prep_sim":
+            self.before_prep_sim_pf = (minflt, majflt)
+        elif state == "before_const":
+            self.before_const_pf = (minflt, majflt)
+        elif state == "before_presim":
+            self.before_presim_pf = (minflt, majflt)
+        elif state == "before_sim":
+            self.before_sim_pf = (minflt, majflt)
+        elif state == "after_sim":
+            self.after_sim_pf = (minflt, majflt)
+
+
+    def write_page_faults_log(self):
+        fn_page_fault = os.path.join(
+            self.data_dir, 'recordings',
+            '_'.join((self.label, 'page_faults_log', str(nest.Rank())))
+        )
+        os.makedirs(os.path.dirname(fn_page_fault), exist_ok=True)
+
+        def _get_pair(attr):
+            v = getattr(self, attr, None)
+            return v if (isinstance(v, tuple) and len(v) == 2) else None
+
+        # (label, later_attr, earlier_attr)
+        diff_pairs = [
+            ("construction_pf", "before_presim_pf", "before_const_pf"),
+            ("presim_pf", "before_sim_pf", "before_presim_pf"),
+            ("simulation_pf", "after_sim_pf", "before_sim_pf"),
+        ]
+
+        rows = []
+        for label, later_attr, earlier_attr in diff_pairs:
+            later = _get_pair(later_attr)
+            earlier = _get_pair(earlier_attr)
+            if later and earlier:
+                minflt_delta = int(later[0]) - int(earlier[0])
+                majflt_delta = int(later[1]) - int(earlier[1])
+                rows.append((label, minflt_delta, majflt_delta))
+            else:
+                rows.append((label, -1, -1))
+
+        if rows:
+            np.savetxt(
+                fn_page_fault,
+                np.array(rows, dtype=object),
+                fmt=["%s", "%d", "%d"],   # label, Δminflt, Δmajflt
+                delimiter=" ",
+                header="label minflt majflt",
+                comments=""
+            )
+
     def simulate(self):
         """
         Create the network and execute simulation.
         Record used memory and wallclock time.
         """
+        self.logging_page_fault("before_prep_sim")
         t0 = time.time()
         self.base_memory = self.memory()
         self.prepare()
@@ -295,6 +354,7 @@ class Simulation:
         self.time_kernel_prepare = t1 - t0
         print("Prepared simulation in {0:.2f} seconds.".format(self.time_kernel_prepare))
 
+        self.logging_page_fault("before_const")
         self.create_recording_devices()
         self.create_areas()
         t2 = time.time()
@@ -319,6 +379,7 @@ class Simulation:
         self.time_network_prepare = time.time() - t4
         print("Network preparation time in {0:.2f} seconds.".format(self.time_network_prepare))
 
+        self.logging_page_fault("before_presim")
         t5 = time.time()
         nest.Run(self.pre_T)
         self.time_presimulate = time.time() - t5
@@ -327,12 +388,14 @@ class Simulation:
 
         self.intermediate_kernel_status = nest.kernel_status
 
+        self.logging_page_fault("before_sim")
         t6 = time.time()
         nest.Run(self.T)
         self.time_simulate = time.time() - t6
 
         self.total_memory = self.memory()
         print("Simulated network in {0:.2f} seconds.".format(self.time_simulate))
+        self.logging_page_fault("after_sim")
         self.logging()
 
     def memory(self):
@@ -420,6 +483,17 @@ class Simulation:
         with open(fn, 'a') as f:
             for key, value in d.items():
                 f.write(key + ' ' + str(value) + '\n')
+
+        fn_cycle_time = os.path.join(self.data_dir,
+                                     'recordings',
+                                     '_'.join((self.label,
+                                               'cycle_time_log',
+                                               str(nest.Rank()))))
+
+        np.savetxt(fn_cycle_time, np.transpose([d['cycle_time_log']['time_update'], d['cycle_time_log']['time_communicate_spike_data'], 
+                                                d['cycle_time_log']['local_spike_counter']]))
+
+        self.write_page_faults_log()
 
     def save_network_gids(self):
         with open(os.path.join(self.data_dir,
