@@ -5,7 +5,7 @@ import os
 # Absolute path to the directory of this script
 here = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(here, "data")
-file_path = os.path.join(data_dir, "sentence_2_smoothed_rates.npy")
+file_path = os.path.join(data_dir, "sentence_3_smoothed_rates.npy")
 
 # --------------------------------------------------------------------
 # Load stimulus data
