@@ -31,6 +31,7 @@ import os
 import numpy as np
 import nest
 import helpers
+from bm_helpers import captureNuma, subtractNuma
 
 
 class Network:
@@ -58,6 +59,7 @@ class Network:
         self.sim_dict = sim_dict
         self.net_dict = net_dict
         self.stim_dict = stim_dict
+        self.numa_stats = {}
 
         # data directory
         self.data_path = sim_dict['data_path']
@@ -122,6 +124,7 @@ class Network:
         some NEST versions (at least in NEST 2.20.2).
 
         """
+        beforeConnect = captureNuma()
         self.__connect_neuronal_populations()
 
         if len(self.sim_dict['rec_dev']) > 0:
@@ -132,10 +135,15 @@ class Network:
             self.__connect_thalamic_stim_input()
         if self.stim_dict['dc_input']:
             self.__connect_dc_stim_input()
+        afterConnect = captureNuma()
+        self.numa_stats['connect'] = subtractNuma(afterConnect, beforeConnect)
 
+        beforePrepare = captureNuma()
         nest.Prepare()
+        afterPrepare = captureNuma()
+        self.numa_stats['prepare_presim'] = subtractNuma(afterPrepare, beforePrepare)
 
-    def simulate(self, t_sim):
+    def simulate(self, t_sim, is_presim):
         """ Simulates the microcircuit.
 
         The ``nest.Simulate()`` call is here explicitly split up into its three
@@ -153,14 +161,22 @@ class Network:
             print('Simulating {} ms.'.format(t_sim))
 
         try:
+            beforePrepare = captureNuma()
             nest.Prepare()
+            afterPrepare = captureNuma()
+            self.numa_stats['prepare_sim'] = subtractNuma(afterPrepare, beforePrepare)
         except BaseException:
             print(
                 'nest.Prepare() has already been called after connecting the '
                 'network. '
                 'This simulate() call directly starts with nest.Run().')
-
+        beforeRun = captureNuma()
         nest.Run(t_sim)
+        afterRun = captureNuma()
+        if is_presim:
+            self.numa_stats['run_presim'] = subtractNuma(afterRun,beforeRun)
+        else:
+            self.numa_stats['run_sim'] = subtractNuma(afterRun,beforeRun)
         nest.Cleanup()
 
     def get_local_spike_counter(self):

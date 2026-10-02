@@ -74,14 +74,14 @@ t3 = time.time()
 py_timers['py_time_connect'] = t3 - t2
 memory_used['network_memory'] = memory()
 
-net.simulate(sim_dict['t_presim'])
+net.simulate(sim_dict['t_presim'], True)
 t4 = time.time()
 py_timers['py_time_presimulate'] = t4 - t3
 memory_used['init_memory'] = memory()
 
 intermediate_kernel_status = nest.GetKernelStatus()
 
-net.simulate(sim_dict['t_sim'])
+net.simulate(sim_dict['t_sim'], False)
 t5 = time.time()
 py_timers['py_time_simulate'] = t5 - t4
 memory_used['total_memory'] = memory()
@@ -130,4 +130,4 @@ print(
     'memory: {}'.format(
         mem))
 
-logging(py_timers=py_timers, memory_used=memory_used, intermediate_kernel_status=intermediate_kernel_status)
+logging(network.numa_stats, py_timers=py_timers, memory_used=memory_used, intermediate_kernel_status=intermediate_kernel_status)

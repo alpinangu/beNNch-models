@@ -1,11 +1,12 @@
 import json
 import os
+import subprocess
 
 import nest
 import numpy as np
 
 
-def logging(py_timers=None, memory_used=None, intermediate_kernel_status={}):
+def logging(numa_stats=None, py_timers=None, memory_used=None, intermediate_kernel_status={}):
     """
     Write runtime and memory for all MPI processes to file.
     """
@@ -67,6 +68,15 @@ def logging(py_timers=None, memory_used=None, intermediate_kernel_status={}):
             for key, value in memory_used.items():
                 f.write(key + ' ' + str(value) + '\n')
 
+    if numa_stats:
+        for phase, stats in numa_stats.items():
+            for key, value in stats.items():
+                f.write(
+                    'NUMASTAT_{}_{} {}\n'.format(
+                        phase, key, str(value)
+                    )
+                )
+
 
 def memory():
     """
@@ -83,3 +93,22 @@ def memory():
         return mem['heap']
     else:
         return mem
+
+def captureNuma():
+    output = subprocess.check_output(["numastat"], text=True)
+    result = {}
+
+    for line in output.splitlines():
+        parts = line.split()
+        if not parts or parts[0].startswith("node"):
+            continue
+
+        metric, *values = parts
+        result.setdefault(metric, []).extend(map(int, values))
+    return result
+
+def subtractNuma(after, before):
+    return {
+        key: [a - b for a, b in zip(after[key], before[key])]
+        for key in after
+    }
