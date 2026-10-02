@@ -67,15 +67,14 @@ def logging(numa_stats=None, py_timers=None, memory_used=None, intermediate_kern
         if memory_used:
             for key, value in memory_used.items():
                 f.write(key + ' ' + str(value) + '\n')
-
-    if numa_stats:
-        for phase, stats in numa_stats.items():
-            for key, value in stats.items():
-                f.write(
-                    'NUMASTAT_{}_{} {}\n'.format(
-                        phase, key, str(value)
+        if numa_stats:
+            for phase, stats in numa_stats.items():
+                for key, value in stats.items():
+                    f.write(
+                        'NUMASTAT_{}_{} {}\n'.format(
+                            phase, key, str(value)
+                        )
                     )
-                )
 
 
 def memory():

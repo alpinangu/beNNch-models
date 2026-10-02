@@ -130,4 +130,4 @@ print(
     'memory: {}'.format(
         mem))
 
-logging(network.numa_stats, py_timers=py_timers, memory_used=memory_used, intermediate_kernel_status=intermediate_kernel_status)
+logging(net.numa_stats, py_timers=py_timers, memory_used=memory_used, intermediate_kernel_status=intermediate_kernel_status)
