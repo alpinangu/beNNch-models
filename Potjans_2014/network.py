@@ -321,10 +321,6 @@ class Network:
         """
         nest.ResetKernel()
 
-        nest.SetKernelStatus({
-            "use_compressed_spikes": False,
-        })
-
         # set seeds for random number generation
         nest.SetKernelStatus(
             {'local_num_threads': self.sim_dict['local_num_threads']})
