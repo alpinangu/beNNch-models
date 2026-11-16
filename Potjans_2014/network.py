@@ -668,7 +668,7 @@ class Network:
                                 # https://nest-simulator.readthedocs.io/en/latest/nest_behavior
                                 # /random_numbers.html#rounding-effects-when-randomizing-delays
                                 min=nest.resolution - 0.5 * nest.resolution,
-                                max=np.Inf)}
+                                max=np.inf)}
 
                     elif self.nest_version == '2':
                         syn_dict = {
@@ -782,7 +782,7 @@ class Network:
                         # https://nest-simulator.readthedocs.io/en/latest/nest_behavior
                         # /random_numbers.html#rounding-effects-when-randomizing-delays
                         min=nest.resolution - 0.5 * nest.resolution,
-                        max=np.Inf)}
+                        max=np.inf)}
 
             elif self.nest_version == '2':
                 syn_dict_th = {
