@@ -305,6 +305,15 @@ class Network:
         """
         nest.ResetKernel()
 
+        nest.SetKernelStatus({
+            "direct_spike_delivery": True,
+            "tree_barrier": True,
+            "single_cycle_barrier": True,
+            "spike_delivery_prefetch": True,
+            "collocation_groups": 4,
+            "compressed_spike_data_copies": 4,
+            "deferred_spike_delivery": True,
+        })
         # set seeds for random number generation
         nest.SetKernelStatus(
             {'local_num_threads': self.sim_dict['local_num_threads']})
